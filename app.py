@@ -52,14 +52,17 @@ def ping_url(url):
     conn = sqlite3.connect('pingwatch.db')
     cursor = conn.cursor()
     try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Chrome/120.0.0.0 Safari/537.36)'
+        }
         start = datetime.now()
-        response = req.get(url, timeout=10)
+        response = req.get(url, timeout=10, headers=headers)
         response_time = (datetime.now() - start).total_seconds() * 1000
         status = 'up' if response.status_code < 400 else 'down'
     except:
         response_time = None
         status = 'down'
-
+    
     cursor.execute(
         'INSERT INTO pings (url, status, response_time) VALUES (?, ?, ?)',
         (url, status, response_time)
@@ -91,8 +94,14 @@ def home():
 @app.route('/add-monitor', methods=['POST'])
 def add_monitor():
     data = request.get_json()
-    url = data['url']
+    url = data['url'].strip()
     name = data['name']
+
+    # Auto-append https://www. if not present
+    if not url.startswith('http://') and not url.startswith('https://'):
+        url = 'https://www.' + url
+    elif url.startswith('https://') and not url.startswith('https://www.'):
+        url = url.replace('https://', 'https://www.')
 
     conn = sqlite3.connect('pingwatch.db')
     cursor = conn.cursor()
