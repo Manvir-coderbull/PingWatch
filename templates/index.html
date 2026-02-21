@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PingWatch - Uptime Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; }
+        nav { padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ffffff10; background: #0d0d15; }
+        .logo { font-size: 22px; font-weight: 800; color: #22d3ee; }
+        .live-badge { display: flex; align-items: center; gap: 8px; background: #22d3ee15; border: 1px solid #22d3ee30; padding: 6px 14px; border-radius: 20px; font-size: 13px; color: #22d3ee; }
+        .live-dot { width: 8px; height: 8px; background: #22d3ee; border-radius: 50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+        .hero { text-align: center; margin-bottom: 40px; }
+        .hero h1 { font-size: 42px; font-weight: 800; background: linear-gradient(135deg, #22d3ee, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .hero p { color: #64748b; font-size: 16px; }
+        .add-card { background: #0d0d15; border: 1px solid #ffffff10; border-radius: 16px; padding: 24px; margin-bottom: 16px; display: flex; gap: 12px; }
+        input { flex: 1; padding: 12px 16px; background: #0a0a0f; border: 1px solid #ffffff15; border-radius: 10px; color: #fff; font-size: 14px; outline: none; }
+        input:focus { border-color: #22d3ee; }
+        input::placeholder { color: #334155; }
+        .btn-main { padding: 12px 24px; background: linear-gradient(135deg, #22d3ee, #6366f1); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .btn-main:hover { opacity: 0.9; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+        .stat-box { background: #0d0d15; border: 1px solid #ffffff10; border-radius: 14px; padding: 20px; text-align: center; }
+        .stat-number { font-size: 32px; font-weight: 800; background: linear-gradient(135deg, #22d3ee, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-label { color: #64748b; font-size: 13px; margin-top: 4px; }
+        .monitor-card { background: #0d0d15; border: 1px solid #ffffff10; border-radius: 16px; padding: 24px; margin-bottom: 16px; transition: border 0.2s; }
+        .monitor-card:hover { border-color: #22d3ee30; }
+        .monitor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .monitor-name { font-size: 18px; font-weight: 700; }
+        .monitor-url { color: #64748b; font-size: 13px; margin-top: 2px; }
+        .status-badge { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+        .status-up { background: #22c55e15; color: #22c55e; border: 1px solid #22c55e30; }
+        .status-down { background: #ef444415; color: #ef4444; border: 1px solid #ef444430; }
+        .monitor-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+        .mini-stat { text-align: center; }
+        .mini-value { font-size: 20px; font-weight: 700; color: #22d3ee; }
+        .mini-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+        .chart-container { height: 80px; }
+        .btn-small { background: transparent; border: 1px solid #ffffff15; color: #94a3b8; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+        .btn-delete { border-color: #ef444430; color: #ef4444; }
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #0d0d15; border: 1px solid #22d3ee30; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; display: none; z-index: 999; }
+        .error-msg { color: #ef4444; font-size: 13px; margin-bottom: 12px; display: none; }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="logo">📡 PingWatch</div>
+        <div style="display:flex; gap:12px; align-items:center;">
+            <a href="/incidents-page" style="color:#64748b; text-decoration:none; font-size:14px; border:1px solid #ffffff15; padding:8px 16px; border-radius:8px;">🚨 Incidents</a>
+            <div class="live-badge">
+                <div class="live-dot"></div>
+                Live Monitoring
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="hero">
+            <h1>Monitor Everything.</h1>
+            <p>Real-time uptime monitoring with response time tracking and incident alerts.</p>
+        </div>
+
+        <div class="add-card">
+            <input type="text" id="nameInput" placeholder="Site name (e.g. Google)" style="max-width: 180px;" />
+            <input type="text" id="urlInput" placeholder="https://example.com" />
+            <button class="btn-main" id="addBtn">+ Add Monitor</button>
+        </div>
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-number" id="totalSites">0</div>
+                <div class="stat-label">Sites Monitored</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="sitesUp">0</div>
+                <div class="stat-label">Sites Up</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="avgUptime">0%</div>
+                <div class="stat-label">Avg Uptime</div>
+            </div>
+        </div>
+
+        <div id="monitorsList"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const charts = {};
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(function() { toast.style.display = 'none'; }, 2500);
+        }
+
+        document.getElementById('addBtn').addEventListener('click', function() {
+            addMonitor();
+        });
+
+        function addMonitor() {
+            const name = document.getElementById('nameInput').value.trim();
+            const url = document.getElementById('urlInput').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (!name || !url) {
+                errorMsg.style.display = 'block';
+                errorMsg.textContent = 'Please enter both name and URL!';
+                return;
+            }
+
+            errorMsg.style.display = 'none';
+            showToast('Adding monitor...');
+
+            fetch('/add-monitor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, url: url })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.error) {
+                    errorMsg.style.display = 'block';
+                    errorMsg.textContent = data.error;
+                    return;
+                }
+                document.getElementById('nameInput').value = '';
+                document.getElementById('urlInput').value = '';
+                showToast('✅ ' + name + ' added and pinged!');
+                loadMonitors();
+            })
+            .catch(function(err) {
+                errorMsg.style.display = 'block';
+                errorMsg.textContent = 'Something went wrong!';
+            });
+        }
+
+        function pingNow(url) {
+            showToast('⚡ Pinging...');
+            fetch('/ping-now', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                showToast((data.status === 'up' ? '✅' : '🔴') + ' ' + data.status.toUpperCase() + ' — ' + data.response_time + 'ms');
+                loadMonitors();
+            });
+        }
+
+        function deleteMonitor(url) {
+            if (!confirm('Remove this monitor?')) return;
+            fetch('/delete-monitor', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('🗑️ Monitor removed!');
+                    loadMonitors();
+                }
+            });
+        }
+
+        function loadMonitors() {
+            fetch('/monitors')
+            .then(function(res) { return res.json(); })
+            .then(function(monitors) {
+                document.getElementById('totalSites').textContent = monitors.length;
+                document.getElementById('sitesUp').textContent = monitors.filter(function(m) { return m.status === 'up'; }).length;
+                
+                var avgUptime = monitors.length
+                    ? (monitors.reduce(function(s, m) { return s + m.uptime; }, 0) / monitors.length).toFixed(1)
+                    : 0;
+                document.getElementById('avgUptime').textContent = avgUptime + '%';
+
+                var list = document.getElementById('monitorsList');
+                list.innerHTML = monitors.map(function(m, i) {
+                    return '<div class="monitor-card">' +
+                        '<div class="monitor-header">' +
+                            '<div>' +
+                                '<div class="monitor-name">' + m.name + '</div>' +
+                                '<div class="monitor-url">' + m.url + '</div>' +
+                            '</div>' +
+                            '<div style="display:flex; gap:8px; align-items:center;">' +
+                                '<span class="status-badge ' + (m.status === 'up' ? 'status-up' : 'status-down') + '">' +
+                                    (m.status === 'up' ? '✅ UP' : '🔴 DOWN') +
+                                '</span>' +
+                                '<button class="btn-small" onclick="pingNow(\'' + m.url + '\')">⚡ Ping</button>' +
+                                '<button class="btn-small btn-delete" onclick="deleteMonitor(\'' + m.url + '\')">Remove</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="monitor-stats">' +
+                            '<div class="mini-stat"><div class="mini-value">' + (m.response_time ? Math.round(m.response_time) + 'ms' : 'N/A') + '</div><div class="mini-label">Response Time</div></div>' +
+                            '<div class="mini-stat"><div class="mini-value">' + m.uptime + '%</div><div class="mini-label">Uptime</div></div>' +
+                            '<div class="mini-stat"><div class="mini-value">' + (m.last_checked ? m.last_checked.split(' ')[1].slice(0,5) : 'N/A') + '</div><div class="mini-label">Last Checked</div></div>' +
+                        '</div>' +
+                        '<div class="chart-container"><canvas id="chart-' + i + '"></canvas></div>' +
+                    '</div>';
+                }).join('');
+
+                monitors.forEach(function(m, i) {
+                    var ctx = document.getElementById('chart-' + i).getContext('2d');
+                    if (charts[i]) charts[i].destroy();
+                    charts[i] = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: m.response_times.map(function(_, j) { return j + 1; }),
+                            datasets: [{
+                                data: m.response_times,
+                                borderColor: '#22d3ee',
+                                backgroundColor: '#22d3ee15',
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { display: false },
+                                y: {
+                                    display: true,
+                                    ticks: { color: '#64748b', font: { size: 10 } },
+                                    grid: { color: '#ffffff08' }
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        loadMonitors();
+        setInterval(loadMonitors, 30000);
+    </script>
+</body>
+</html>

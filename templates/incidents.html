@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PingWatch - Incidents</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            min-height: 100vh;
+        }
+        nav {
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ffffff10;
+            background: #0d0d15;
+        }
+        .logo { font-size: 22px; font-weight: 800; color: #22d3ee; }
+        .back-btn {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            border: 1px solid #ffffff15;
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+        .container { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        h1 {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #22d3ee, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 24px;
+        }
+        .incident-card {
+            background: #0d0d15;
+            border: 1px solid #ffffff10;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .incident-card.active { border-color: #ef444430; }
+        .incident-card.resolved { border-color: #22c55e20; }
+        .incident-url { color: #22d3ee; font-weight: 700; font-size: 15px; }
+        .incident-time { color: #64748b; font-size: 13px; margin-top: 4px; }
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .badge-active {
+            background: #ef444415;
+            color: #ef4444;
+            border: 1px solid #ef444430;
+        }
+        .badge-resolved {
+            background: #22c55e15;
+            color: #22c55e;
+            border: 1px solid #22c55e30;
+        }
+        .duration {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 4px;
+            text-align: right;
+        }
+        .empty {
+            text-align: center;
+            padding: 80px 20px;
+            color: #64748b;
+        }
+        .empty h2 { font-size: 20px; margin-bottom: 8px; color: #22c55e; }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="logo">📡 PingWatch</div>
+        <a href="/" class="back-btn">← Back to Dashboard</a>
+    </nav>
+
+    <div class="container">
+        <h1>🚨 Incident History</h1>
+        <div id="incidentsList"></div>
+    </div>
+
+    <script>
+        async function loadIncidents() {
+            const res = await fetch('/incidents');
+            const incidents = await res.json();
+            const list = document.getElementById('incidentsList');
+
+            if (incidents.length === 0) {
+                list.innerHTML = `
+                    <div class="empty">
+                        <h2>✅ No incidents recorded!</h2>
+                        <p>All your monitored sites have been running smoothly.</p>
+                    </div>`;
+                return;
+            }
+
+            list.innerHTML = incidents.map(inc => {
+                const started = new Date(inc.started_at);
+                const resolved = inc.resolved_at ? new Date(inc.resolved_at) : null;
+                const duration = resolved
+                    ? Math.round((resolved - started) / 60000) + ' mins'
+                    : 'Ongoing';
+
+                return `
+                    <div class="incident-card ${inc.resolved_at ? 'resolved' : 'active'}">
+                        <div>
+                            <div class="incident-url">${inc.url}</div>
+                            <div class="incident-time">⬇️ Down at: ${inc.started_at}</div>
+                            ${inc.resolved_at ? `<div class="incident-time">✅ Resolved at: ${inc.resolved_at}</div>` : ''}
+                        </div>
+                        <div>
+                            <div class="badge ${inc.resolved_at ? 'badge-resolved' : 'badge-active'}">
+                                ${inc.resolved_at ? 'Resolved' : '🔴 Active'}
+                            </div>
+                            <div class="duration">Duration: ${duration}</div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        loadIncidents();
+    </script>
+</body>
+</html>
